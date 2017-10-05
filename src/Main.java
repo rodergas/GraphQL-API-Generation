@@ -47,7 +47,7 @@ import org.apache.jena.rdf.model.StmtIterator;
 
 import virtuoso.jena.driver.*;
 
-public class VirtuosoSPARQLExample2 {
+public class Main {
 	
 	
 	static void addScalar(ArrayList<ScalarField> createdScalarField, Scalar scalar, String s,  StmtIterator it){
