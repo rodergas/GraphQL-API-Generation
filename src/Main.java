@@ -49,6 +49,11 @@ import virtuoso.jena.driver.*;
 
 public class Main {
 	
+	static String Ex = "http://www.example.com/";
+	static String Gql = "http://www.essi.upc.edu/~jvarga/gql/";
+	static String Rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+	static String Rdfs = "http://www.w3.org/2000/01/rdf-schema#";
+	
 	
 	static void addScalar(ArrayList<ScalarField> createdScalarField, Scalar scalar, String s,  StmtIterator it){
 		for(int i = 0; i < createdScalarField.size(); ++i){
@@ -196,7 +201,7 @@ public class Main {
 /*		Select only from VirtGraph	*/
 		//Query sparql = QueryFactory.create("SELECT * WHERE { ?s ?p ?o } ");
 		
-		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example2> WHERE { ?s ?p ?o }  ");
+		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example4> WHERE { ?s ?p ?o }  ");
 
 
 /*			STEP 4			*/
@@ -226,21 +231,29 @@ public class Main {
 			     RDFNode p = stmt.getPredicate();
 			     RDFNode o = stmt.getObject();
 			     
+			     System.out.println(s.toString() + " " + p.toString() + " " + o.toString());
+			     
 			     //Creating instance of the objects
-			     if(p.toString().contains("type")){
-			    	 if(o.toString().contains("ObjectField")){
+			     if(p.toString().equals(Rdf + "type")){
+			    	 
+			    	 
+			    	 
+			    	 if(o.toString().equals(Gql + "ObjectField")){
 			    		 createdObjectField.add(new ObjectField(s.toString()));
-			    	 }else if(o.toString().contains("ScalarField")){
+			    	 }else if(o.toString().equals(Gql +"ScalarField")){
 			    		 createdScalarField.add(new ScalarField(s.toString(), null));
-			    	 }else if(o.toString().contains("Object")){
+			    	 }else if(o.toString().equals(Gql +"Object")){
 			    		 createdObjects.add(new Object(s.toString()));
-			    	 }else if(o.toString().contains("Field")){
+			    	 }else if(o.toString().equals(Gql + "Field")){
 			    		 createdField.add(new Field(s.toString()));
 			    	 }	 
+			    	 else{
+			    		 //Classes instances
+			    	 }
 			    	 tripleTratado( it);
 			     }
 			     //Subclasses of the objects
-			     else if(p.toString().contains("subClassOf")){
+			     else if(p.toString().equals(Rdfs + "subClassOf")){
 			    	 for(int i = 0; i < createdObjects.size(); ++i){
 			    		 if(createdObjects.get(i).getName().equals(s.toString())){
 			    			 createdObjects.get(i).addSubClassOf(o.toString());
@@ -252,17 +265,17 @@ public class Main {
 			     
 			     
 			     //Type of the scalar field or what is the reange of an object field
-			     else if(p.toString().contains("range")){
+			     else if(p.toString().equals(Rdfs + "range")){
 			    	 //ScalarFields
-			    	 if(o.toString().contains(Scalar.Float.toString())){
+			    	 if(o.toString().equals(Gql + Scalar.Float.toString())){
 			    		 addScalar(createdScalarField,Scalar.Float, s.toString(), it); 
-			    	 }else if(o.toString().contains(Scalar.ID.toString())){
+			    	 }else if(o.toString().equals(Gql + Scalar.ID.toString())){
 			    		 addScalar(createdScalarField,Scalar.ID, s.toString(),  it); 
-			    	 }else if(o.toString().contains(Scalar.Boolean.toString())){
+			    	 }else if(o.toString().equals(Gql + Scalar.Boolean.toString())){
 			    		 addScalar(createdScalarField,Scalar.Boolean, s.toString(),  it); 
-			    	 }else if(o.toString().contains(Scalar.Int.toString())){
+			    	 }else if(o.toString().equals(Gql + Scalar.Int.toString())){
 			    		 addScalar(createdScalarField,Scalar.Int, s.toString(),  it); 
-			    	 }else if(o.toString().contains(Scalar.String.toString())){
+			    	 }else if(o.toString().equals(Gql + Scalar.String.toString())){
 			    		 addScalar(createdScalarField,Scalar.String, s.toString(),  it); 
 			    	 }else{
 			    	 
@@ -275,25 +288,33 @@ public class Main {
 			     //The domain could be an object related to another object (ObjectField) ex:nearByInfrastructure rdfs:domain ex:Infrastructure ;
 			     //Or could be an scalar related to an object ex:stopName rdfs:domain ex:MetroAndBusStop ;
 			     
-			     else if(p.toString().contains("domain")){
+			     else if(p.toString().equals(Rdfs + "domain")){
 			    	 ScalarOrObjectField(s.toString(), createdObjectField, createdScalarField, o.toString(), it);
 			     }
 			     
 			     //Put modifier of the field
-			     else if(p.toString().contains("hasModifier")){
+			     else if(p.toString().equals(Gql + "hasModifier")){
 			    	 addModifierToField(s.toString(), createdField, o.toString(), it);
 			     }
 			     
 			     //Put domain of the Field
-			     else if(p.toString().contains("hasField")){
+			     else if(p.toString().equals(Gql +"hasField")){
 			    	 addObjectToField(s.toString(), createdField, o.toString(), it);
 			     }
 			     
+
+			     
 			     //Scalar Field or Object Field (FieldProperty) related with a blank node (Field)
-			     else {
+			     else if(s.toString().contains("#b")){
+			    	 System.out.println("ENTRO " + s.toString() + " " + p.toString() + " " + o.toString());
 			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), it);
 			    	 
-			     }			     
+			     }		
+			     //atributos de instancias "Localitzacio ex:longitude 2 ;"
+			     //else if(!o.toString().contains("http://www.example.com/") && !o.toString().contains("http://www.essi.upc.edu/~jvarga/gql/")){
+			     else{
+			    	 tripleTratado( it);
+			     }
 			}
 
 	    }
