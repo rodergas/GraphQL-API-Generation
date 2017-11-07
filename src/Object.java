@@ -4,6 +4,7 @@ public class Object {
 	private String name;
 	private ArrayList<String> subClassOf;
 	private ArrayList<Field> fields;
+	private boolean isInterface;
 	
 	
 	public Object(String name){
@@ -51,6 +52,18 @@ public class Object {
 
 	public void setFields(ArrayList<Field> fields) {
 		this.fields = fields;
+	}
+
+
+
+	public boolean isInterface() {
+		return isInterface;
+	}
+
+
+
+	public void setInterface(boolean isInterface) {
+		this.isInterface = isInterface;
 	}
 
 }

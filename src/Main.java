@@ -153,6 +153,7 @@ public class Main {
 	}
 	
 	static void writeFields(Object obj, FileWriter fw) throws IOException{
+
 		for(int i = 0; i < obj.getFields().size(); ++i){
 			Field f = obj.getFields().get(i);
 			Integer index = f.getProperty().getName().lastIndexOf("/");
@@ -376,6 +377,7 @@ public class Main {
         		String name = it.next();
         		if(obj.getName().equals(name)){
         			interfaz = true;
+        			obj.setInterface(true);
         			Integer index = name.lastIndexOf("/");
         			String shortName = name.substring(index + 1);
         			fw.write("interface " + shortName + " {" + " \r\n"); //First line
@@ -388,18 +390,19 @@ public class Main {
         	
         	//No interface
         	if(!interfaz){
+        		obj.setInterface(false);
         		Integer index = obj.getName().lastIndexOf("/");
         		String shortName = obj.getName().substring(index + 1);
         		
         		if(obj.getSubClassOf().size() == 0)fw.write("type "  + shortName + " {" + " \r\n");
         		else{
-        			String nameSubclass = "";
+        			ArrayList<String> nameSubclass = new ArrayList<>();
         			String shortNameSubClass = "";
         			fw.write("type "  + shortName + " implements ");
         			for(int i = 0; i < obj.getSubClassOf().size(); ++i){
         				index = obj.getSubClassOf().get(i).lastIndexOf("/");
-        				nameSubclass = obj.getSubClassOf().get(i);
         				shortNameSubClass = obj.getSubClassOf().get(i).substring(index + 1);
+        				nameSubclass.add(obj.getSubClassOf().get(i));
         				if(i == 0) fw.write(shortNameSubClass);
         				else fw.write(", " + shortNameSubClass);
         				
@@ -407,24 +410,48 @@ public class Main {
         			fw.write("{" + " \r\n");
         			
         			//Fields of subclassOf to this object
-        			for(int i = 0; i < createdObjects.size(); ++i){
-        				if(createdObjects.get(i).getName().equals(nameSubclass)){
-        					writeFields(createdObjects.get(i),fw);
-        				}
+	        		for(int z = 0; z < createdObjects.size(); ++z){
+	        			for(int k = 0; k < nameSubclass.size(); ++k){
+	        				
+	        				if(createdObjects.get(z).getName().equals(nameSubclass.get(k))){
+	        					index = createdObjects.get(z).getName().lastIndexOf("/");
+	            				shortNameSubClass = createdObjects.get(z).getName().substring(index + 1);
+	        					fw.write("	" + shortNameSubClass + "Type: String!" + " \r\n");
+	        					writeFields(createdObjects.get(z),fw);
+	        				}
+	        			}
         			}
         			
-        			fw.write("	" + shortNameSubClass + "Type: String!" + " \r\n");
+        			
         			
         		}
         		writeFields(obj,fw);
-    			fw.write("} " + " \r\n" + " \r\n");
+    			fw.write("} " + " \r\n");
     			
         	}
         	
         }
         
-
-
+        
+        //Queries
+        fw.write("type Query {" + " \r\n");
+        for(int i = 0; i < createdObjects.size(); ++i){
+        	if(!createdObjects.get(i).isInterface()){
+        		Integer index = createdObjects.get(i).getName().lastIndexOf("/");
+				String shortNameSubClass = createdObjects.get(i).getName().substring(index + 1);
+        		fw.write("	" + "all"+ shortNameSubClass + "s: [" + shortNameSubClass +"]" + " \r\n");
+        		fw.write("	" + "get"+ shortNameSubClass + "(id: String!): " + shortNameSubClass +"" + " \r\n");
+        		
+        	}
+        }
+        fw.write("}" + " \r\n");
+        
+        fw.write("schema {" + " \r\n");
+        fw.write("	query: Query" + " \r\n");
+        fw.write("}" + " \r\n" + " \r\n");
+        
+        	  
+        	
         
         fw.close();
 
