@@ -188,27 +188,16 @@ public class Main {
 	 */
 	public static void main(String[] args) throws IOException {
 
-/*			STEP 1			*/
 		VirtGraph graph = new VirtGraph ("TFG_Example1", "jdbc:virtuoso://localhost:1111", "dba", "dba");
 
-/*			STEP 2			*/
-/*		Load data to Virtuoso		*/
 		graph.clear ();
 
-		//graph.read("file://20170714_gql_example.ttl", "TTL");
-
-/*			STEP 3			*/
-/*		Select only from VirtGraph	*/
-		//Query sparql = QueryFactory.create("SELECT * WHERE { ?s ?p ?o } ");
 		
 		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example4> WHERE { ?s ?p ?o }  ");
 
 
-/*			STEP 4			*/
 		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
-		//ResultSet results = vqe.execSelect();
 		Model model = vqe.execConstruct();
-		//ResultSetFormatter.out(System.out, results, sparql);
 		
 		
 		
@@ -306,7 +295,6 @@ public class Main {
 			     
 			     //Scalar Field or Object Field (FieldProperty) related with a blank node (Field)
 			     else if(s.toString().contains("#b")){
-			    	 System.out.println("ENTRO " + s.toString() + " " + p.toString() + " " + o.toString());
 			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), it);
 			    	 
 			     }		
@@ -319,6 +307,7 @@ public class Main {
 
 	    }
 		
+		graph.close();
 		
 		System.out.println("####OBJECTS#####");
 		for(int i = 0; i < createdObjects.size(); ++i){
