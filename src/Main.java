@@ -32,6 +32,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Scanner;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
@@ -166,6 +167,9 @@ public class Main {
 			index = f.getProperty().getRange().lastIndexOf("/");
 			String shortNameRange = f.getProperty().getRange().substring(index + 1);
 			
+			index = f.getProperty().getDomain().lastIndexOf("/");
+			String shortNameDomain = f.getProperty().getDomain().substring(index + 1);
+			
 			ArrayList<Modifier> mod = f.getModifier();
 			
 			if(mod.size() == 0){
@@ -178,7 +182,29 @@ public class Main {
 					else if(mod.get(j).equals(Modifier.NonNull)) noNull = true;
 				}
 				
-				if(lista && noNull) fw.write("	" + shortName + ": [" + shortNameRange +  "]!\r\n");
+				if(lista && noNull){
+					System.out.println("The field " + shortName + " of the Type/Interface " + shortNameDomain  + " could be one of the following options, choose which is the right one for your porpuses :");
+					System.out.println("1) "  + shortName + " : [" + shortNameRange +"]!");
+					System.out.println("2) "  + shortName + " : [" + shortNameRange +"!]");
+					System.out.println("3) "  + shortName + " : [" + shortNameRange +"!]!");
+					Scanner scanner = new Scanner(System.in);
+					
+					Integer option = scanner.nextInt();
+					boolean valid = false;
+					if(option > 3 || option < 1){
+						while(!valid){
+							if(option > 3 || option < 1) {
+								option = scanner.nextInt();
+								valid = true;
+							}
+						}
+					}
+					
+					System.out.println("You choose " + option);
+					if(option == 1) fw.write("	" + shortName + ": [" + shortNameRange +  "]!\r\n");
+					else if(option == 2)fw.write("	" + shortName + ": [" + shortNameRange +  "!]\r\n");
+					else if(option == 3)fw.write("	" + shortName + ": [" + shortNameRange +  "!]!\r\n");
+				}
 				else if(lista) fw.write("	" + shortName + ": [" + shortNameRange +  "]\r\n");
 				else if (noNull)fw.write("	" + shortName + ": " + shortNameRange +  "!\r\n");
 				
@@ -208,7 +234,7 @@ public class Main {
 		graph.clear ();
 
 		
-		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example4> WHERE { ?s ?p ?o }  ");
+		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example5> WHERE { ?s ?p ?o }  ");
 
 
 		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
