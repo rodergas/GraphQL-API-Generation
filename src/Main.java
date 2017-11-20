@@ -121,7 +121,7 @@ public class Main {
 		}
 	}
 	
-	static void addFieldPropertyToField(String s, ArrayList<Field> createdField,  ArrayList<ObjectField> createdObjectField , ArrayList<ScalarField> createdScalarField , String p, StmtIterator it){
+	static void addFieldPropertyToField(String s, ArrayList<Field> createdField,  ArrayList<ObjectField> createdObjectField , ArrayList<ScalarField> createdScalarField , String p, String o, StmtIterator it){
 		for(int i = 0; i < createdField.size(); ++i){
 			//get Field
 			if(createdField.get(i).getName().equals(s)){
@@ -130,6 +130,8 @@ public class Main {
 				for(int j = 0; j < createdObjectField.size(); ++j){
 					if(createdObjectField.get(j).getName().equals(p)){
 						find = true;
+						//:b12 ex:locatedIn ex:GeographicalCoordinate . (get range from this sentence and not from this ex:stationSlotsNumber  rdfs:range gql:Int  ;
+						createdObjectField.get(j).setRange(o);
 						createdField.get(i).setProperty(createdObjectField.get(j));
 					}
 				}
@@ -138,6 +140,8 @@ public class Main {
 					for(int j = 0; j < createdScalarField.size(); ++j){
 						if(createdScalarField.get(j).getName().equals(p)){
 							find = true;
+							//:b4  ex:stationType  gql:String .
+							createdScalarField.get(j).setRange(o);
 							createdField.get(i).setProperty(createdScalarField.get(j));
 						}
 					}
@@ -174,14 +178,24 @@ public class Main {
 					else if(mod.get(j).equals(Modifier.NonNull)) noNull = true;
 				}
 				
-				if(lista && noNull) fw.write("	" + shortName + ": [" + shortNameRange +  "]! \r\n");
-				else if(lista) fw.write("	" + shortName + ": [" + shortNameRange +  "] \r\n");
-				else if (noNull)fw.write("	" + shortName + ": " + shortNameRange +  "! \r\n");
+				if(lista && noNull) fw.write("	" + shortName + ": [" + shortNameRange +  "]!\r\n");
+				else if(lista) fw.write("	" + shortName + ": [" + shortNameRange +  "]\r\n");
+				else if (noNull)fw.write("	" + shortName + ": " + shortNameRange +  "!\r\n");
 				
 			}
 		}
 	}
 	
+	
+	static void askForPk(ArrayList<Object> objects){
+		for(Object o : objects){
+			System.out.println(o.getName());
+			for(Field f : o.getFields()){
+				System.out.println(f.getProperty().getName() + " " + f.getProperty().getRange());
+			}
+			System.out.println("----------");
+		}
+	}
 	
 	/**
 	 * Executes a SPARQL query against a virtuoso url and prints results.
@@ -296,7 +310,7 @@ public class Main {
 			     
 			     //Scalar Field or Object Field (FieldProperty) related with a blank node (Field)
 			     else if(s.toString().contains("#b")){
-			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), it);
+			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), o.toString(), it);
 			    	 
 			     }		
 			     //atributos de instancias "Localitzacio ex:longitude 2 ;"
@@ -322,6 +336,7 @@ public class Main {
 			}
 			System.out.println("--------------------");
 		}
+		
 		System.out.println("#####SCALAR FIELDS#####");
 		for(int i = 0; i < createdScalarField.size(); ++i){
 			System.out.println("Name: " + createdScalarField.get(i).getName());
@@ -346,6 +361,7 @@ public class Main {
 			} 
 			System.out.println("Domain: " + createdField.get(i).getDomain());
 			System.out.println("Field Property Name: " + createdField.get(i).getProperty().getName());
+			System.out.println("Field Type: " + createdField.get(i).getProperty().getRange());
 			System.out.println("--------------------");
 		}
 		
@@ -380,9 +396,9 @@ public class Main {
         			obj.setInterface(true);
         			Integer index = name.lastIndexOf("/");
         			String shortName = name.substring(index + 1);
-        			fw.write("interface " + shortName + " {" + " \r\n"); //First line
+        			fw.write("interface " + shortName + " {" + "\r\n"); //First line
         			writeFields(obj,fw);
-        			fw.write("	" + shortName + "Type: String!" + " \r\n"); //type 
+        			fw.write("	" + shortName + "Type: String!" + "\r\n"); //type 
         			fw.write("} " + " \r\n" + " \r\n");
 
         		}
@@ -394,7 +410,7 @@ public class Main {
         		Integer index = obj.getName().lastIndexOf("/");
         		String shortName = obj.getName().substring(index + 1);
         		
-        		if(obj.getSubClassOf().size() == 0)fw.write("type "  + shortName + " {" + " \r\n");
+        		if(obj.getSubClassOf().size() == 0)fw.write("type "  + shortName + " {" + "\r\n");
         		else{
         			ArrayList<String> nameSubclass = new ArrayList<>();
         			String shortNameSubClass = "";
@@ -407,7 +423,7 @@ public class Main {
         				else fw.write(", " + shortNameSubClass);
         				
         			}
-        			fw.write("{" + " \r\n");
+        			fw.write("{" + "\r\n");
         			
         			//Fields of subclassOf to this object
 	        		for(int z = 0; z < createdObjects.size(); ++z){
@@ -416,7 +432,7 @@ public class Main {
 	        				if(createdObjects.get(z).getName().equals(nameSubclass.get(k))){
 	        					index = createdObjects.get(z).getName().lastIndexOf("/");
 	            				shortNameSubClass = createdObjects.get(z).getName().substring(index + 1);
-	        					fw.write("	" + shortNameSubClass + "Type: String!" + " \r\n");
+	        					fw.write("	" + shortNameSubClass + "Type: String!" + "\r\n");
 	        					writeFields(createdObjects.get(z),fw);
 	        				}
 	        			}
@@ -426,7 +442,7 @@ public class Main {
         			
         		}
         		writeFields(obj,fw);
-    			fw.write("} " + " \r\n");
+    			fw.write("}" + "\r\n");
     			
         	}
         	
@@ -434,35 +450,27 @@ public class Main {
         
         
         //Queries
-        fw.write("type Query {" + " \r\n");
+        fw.write("type Query {" + "\r\n");
         for(int i = 0; i < createdObjects.size(); ++i){
         	if(!createdObjects.get(i).isInterface()){
         		Integer index = createdObjects.get(i).getName().lastIndexOf("/");
 				String shortNameSubClass = createdObjects.get(i).getName().substring(index + 1);
-        		fw.write("	" + "all"+ shortNameSubClass + "s: [" + shortNameSubClass +"]" + " \r\n");
-        		fw.write("	" + "get"+ shortNameSubClass + "(id: String!): " + shortNameSubClass +"" + " \r\n");
+        		fw.write("	" + "all"+ shortNameSubClass + "s: [" + shortNameSubClass +"]" + "\r\n");
+        		fw.write("	" + "get"+ shortNameSubClass + "(id: String!): " + shortNameSubClass +"" + "\r\n");
         		
         	}
         }
-        fw.write("}" + " \r\n");
+        fw.write("}" + "\r\n");
         
-        fw.write("schema {" + " \r\n");
-        fw.write("	query: Query" + " \r\n");
-        fw.write("}" + " \r\n" + " \r\n");
-        
-        	  
-        	
-        
+        fw.write("schema {" + "\r\n");
+        fw.write("	query: Query" + "\r\n");
+        fw.write("}" + "\r\n" + "\r\n");
         fw.close();
 
-
-
-
-		
-		
+        askForPk(createdObjects);
 	}
 
-
+	
 
 
 }
