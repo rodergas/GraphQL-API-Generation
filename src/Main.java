@@ -24,23 +24,14 @@
 //package virtuoso.jena.driver;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Scanner;
 
 import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
-import org.apache.jena.query.QuerySolution;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Statement;
@@ -102,12 +93,7 @@ public class Main {
 	static void addModifierToField(String s, ArrayList<Field> createdField, String o, StmtIterator it){
 		for (int i = 0; i < createdField.size(); ++i){
 			if(createdField.get(i).getName().equals(s)){
-				if(o.contains("NonNull")){
-					createdField.get(i).addModifier(Modifier.NonNull);
-				}
-				else if(o.contains("List")){
-					createdField.get(i).addModifier(Modifier.List);
-				}
+				createdField.get(i).setModifier(new Modifier(o));
 				tripleTratado( it);
 			}
 		}
@@ -122,6 +108,24 @@ public class Main {
 		}
 	}
 	
+	static void combineModifiers(String s, ArrayList<Modifier> modifiers, String o, StmtIterator it){
+		Integer index = -1;
+		for(int i = 0; i < modifiers.size(); ++i){
+			if(modifiers.get(i).getName().equals(s)){
+				index = i;
+			}
+		}
+		//subject exists
+		if(index >= 0){
+			for(int i = 0; i < modifiers.size(); ++i){
+				if(modifiers.get(i).getName().equals(o)){
+					modifiers.get(index).addCombined(modifiers.get(i));
+					tripleTratado(it);
+				}
+			}
+		}
+	}
+	
 	static void addFieldPropertyToField(String s, ArrayList<Field> createdField,  ArrayList<ObjectField> createdObjectField , ArrayList<ScalarField> createdScalarField , String p, String o, StmtIterator it){
 		for(int i = 0; i < createdField.size(); ++i){
 			//get Field
@@ -129,20 +133,18 @@ public class Main {
 				boolean find = false;
 				//Search if predicate is related to an object Field
 				for(int j = 0; j < createdObjectField.size(); ++j){
-					if(createdObjectField.get(j).getName().equals(p)){
+					if(createdObjectField.get(j).getName().equals(o)){
 						find = true;
-						//:b12 ex:locatedIn ex:GeographicalCoordinate . (get range from this sentence and not from this ex:stationSlotsNumber  rdfs:range gql:Int  ;
-						createdObjectField.get(j).setRange(o);
+						//:b12 gql:asProperty  ex:locatedIn . 
 						createdField.get(i).setProperty(createdObjectField.get(j));
 					}
 				}
 				//Search if is predicate related to an scalar Field
 				if(find == false){
 					for(int j = 0; j < createdScalarField.size(); ++j){
-						if(createdScalarField.get(j).getName().equals(p)){
+						if(createdScalarField.get(j).getName().equals(o)){
 							find = true;
-							//:b4  ex:stationType  gql:String .
-							createdScalarField.get(j).setRange(o);
+							//:b4  gql:asProperty ex:stationType.
 							createdField.get(i).setProperty(createdScalarField.get(j));
 						}
 					}
@@ -167,46 +169,30 @@ public class Main {
 			index = f.getProperty().getRange().lastIndexOf("/");
 			String shortNameRange = f.getProperty().getRange().substring(index + 1);
 			
-			index = f.getProperty().getDomain().lastIndexOf("/");
-			String shortNameDomain = f.getProperty().getDomain().substring(index + 1);
+			Modifier mod = f.getModifier();
 			
-			ArrayList<Modifier> mod = f.getModifier();
-			
-			if(mod.size() == 0){
+			if(mod == null){
 				fw.write("	" + shortName + ": " + shortNameRange +  " \r\n");
 			}else{
-				boolean lista = false;
-				boolean noNull = false;
-				for(int j = 0; j < mod.size(); ++j){
-					if(mod.get(j).equals(Modifier.List)) lista = true;
-					else if(mod.get(j).equals(Modifier.NonNull)) noNull = true;
+				String combination = "";
+				int contadorClaudators = 0;
+				if(mod.getClass().equals(List.class)){ combination += "]"; ++contadorClaudators;}
+				else if(mod.getClass().equals(NonNull.class)) combination += "!";
+				
+				for(int j = 0; j < mod.getCombinedWith().size(); ++j ){
+					System.out.println(shortName + " " + mod);
+					if(mod.getCombinedWith().get(j).getClass().equals(List.class)) { combination += "]"; ++contadorClaudators;}
+					else if(mod.getCombinedWith().get(j).getClass().equals(NonNull.class)) combination += "!";
 				}
 				
-				if(lista && noNull){
-					System.out.println("The field " + shortName + " of the Type/Interface " + shortNameDomain  + " could be one of the following options, choose which is the right one for your porpuses :");
-					System.out.println("1) "  + shortName + " : [" + shortNameRange +"]!");
-					System.out.println("2) "  + shortName + " : [" + shortNameRange +"!]");
-					System.out.println("3) "  + shortName + " : [" + shortNameRange +"!]!");
-					Scanner scanner = new Scanner(System.in);
-					
-					Integer option = scanner.nextInt();
-					boolean valid = false;
-					if(option > 3 || option < 1){
-						while(!valid){
-							if(option > 3 || option < 1) {
-								option = scanner.nextInt();
-								valid = true;
-							}
-						}
-					}
-					
-					System.out.println("You choose " + option);
-					if(option == 1) fw.write("	" + shortName + ": [" + shortNameRange +  "]!\r\n");
-					else if(option == 2)fw.write("	" + shortName + ": [" + shortNameRange +  "!]\r\n");
-					else if(option == 3)fw.write("	" + shortName + ": [" + shortNameRange +  "!]!\r\n");
+				
+				combination = shortNameRange + combination;
+				
+				for(int j = 0; j < contadorClaudators; ++j) {
+					combination = "[" + combination;
 				}
-				else if(lista) fw.write("	" + shortName + ": [" + shortNameRange +  "]\r\n");
-				else if (noNull)fw.write("	" + shortName + ": " + shortNameRange +  "!\r\n");
+
+				fw.write("	" + shortName + ": " + combination +"\r\n");
 				
 			}
 		}
@@ -234,7 +220,7 @@ public class Main {
 		graph.clear ();
 
 		
-		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example5> WHERE { ?s ?p ?o }  ");
+		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example6> WHERE { ?s ?p ?o }  ");
 
 
 		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
@@ -247,6 +233,7 @@ public class Main {
 		ArrayList<ObjectField> createdObjectField= new ArrayList<>();
 		ArrayList<Field> createdField= new ArrayList<>();
 		HashSet<String> subClassOf = new HashSet<>();
+		ArrayList<Modifier> modifiers = new ArrayList<>();
 		
 
 		
@@ -276,6 +263,10 @@ public class Main {
 			    		 createdObjects.add(new Object(s.toString()));
 			    	 }else if(o.toString().equals(Gql + "Field")){
 			    		 createdField.add(new Field(s.toString()));
+			    	 }else if(o.toString().equals(Gql + "List")){
+			    		 modifiers.add(new List(s.toString()));
+			    	 }else if(o.toString().equals(Gql + "NonNull")){
+			    		 modifiers.add(new NonNull(s.toString()));
 			    	 }	 
 			    	 else{
 			    		 //Classes instances
@@ -331,11 +322,13 @@ public class Main {
 			     else if(p.toString().equals(Gql +"hasField")){
 			    	 addObjectToField(s.toString(), createdField, o.toString(), it);
 			     }
-			     
-
+			     //combine two modifiers
+			     else if(p.toString().equals(Gql + "combinedWith")){
+			    	 combineModifiers(s.toString(), modifiers, o.toString(), it);
+			     }
 			     
 			     //Scalar Field or Object Field (FieldProperty) related with a blank node (Field)
-			     else if(s.toString().contains("#b")){
+			     else if(p.toString().contains(Gql + "asProperty")){
 			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), o.toString(), it);
 			    	 
 			     }		
@@ -345,7 +338,7 @@ public class Main {
 			    	 tripleTratado( it);
 			     }
 			}
-
+			System.out.println("----");
 	    }
 		
 		graph.close();
@@ -381,10 +374,8 @@ public class Main {
 		System.out.println("#####FIELDS#####");
 		for(int i = 0; i < createdField.size(); ++i){
 			System.out.println("Name: " + createdField.get(i).getName());
-			ArrayList<Modifier> mod = createdField.get(i).getModifier();
-			for (int j = 0; j < mod.size(); ++j){
-				System.out.println("Modifier: " + mod.get(j).toString());
-			} 
+			Modifier mod = createdField.get(i).getModifier();
+			if(mod != null)System.out.println("Modifier: " + mod.getName());
 			System.out.println("Domain: " + createdField.get(i).getDomain());
 			System.out.println("Field Property Name: " + createdField.get(i).getProperty().getName());
 			System.out.println("Field Type: " + createdField.get(i).getProperty().getRange());
@@ -392,10 +383,35 @@ public class Main {
 		}
 		
 		
+		System.out.println("#####MODIFIERS#####");
+		for(int i = 0; i < modifiers.size(); ++i){
+			System.out.println("Name : " + modifiers.get(i).getName() + " tipo: " + modifiers.get(i).getClass());
+			
+			for(Modifier m : modifiers.get(i).getCombinedWith()){
+				System.out.println("Name combinado:   " + m.getName() + " tipo combinado: " + m.getClass());
+			}
+			System.out.println("--------------------");
+			
+		}
+		
+
 		//File newTextFile = new File("C:/Users/rober_000/Documents/TFG/Ejemplos_Ontologias/Primer_ejemplo-17_7_2017_13_57/test.js");
 		File newTextFile = new File("C:/Users/rober_000/Documents/TFG/Ejemplos_Ontologias/Primer_ejemplo_extendido-18_09_2017_17_31/test.js");
 
         FileWriter fw = new FileWriter(newTextFile);
+        
+        //Link modifiers that have the combinations with createdFields that only have the name of the modifier
+        
+        for(int i = 0; i < createdField.size(); ++i){
+        	Modifier m = createdField.get(i).getModifier();
+        	if(m != null){
+        		for(int j = 0; j < modifiers.size(); ++j){
+        			if(m.getName().equals(modifiers.get(j).getName())){
+        				createdField.get(i).setModifier(modifiers.get(j));
+        			}
+        		}
+        	}
+        }
         
         //Link fields (includes scalarfields, objectfields + modifier) with the created objects
         
@@ -493,7 +509,8 @@ public class Main {
         fw.write("}" + "\r\n" + "\r\n");
         fw.close();
 
-        askForPk(createdObjects);
+        //askForPk(createdObjects);
+        
 	}
 
 	

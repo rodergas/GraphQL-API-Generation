@@ -3,23 +3,23 @@ import java.util.ArrayList;
 public class Field {
 
 	
-	private ArrayList<Modifier> modifiers;
+	private Modifier hasModifier;
 	private String name;
 	private String domain;
 	private FieldProperty property;
 	
 	public Field(String name){
 		this.setName(name);
-		modifiers = new ArrayList<>();
 	}
 
-	public ArrayList<Modifier> getModifier() {
-		return modifiers;
+	public void setModifier(Modifier mod){
+		hasModifier = mod;
+	}
+	
+	public Modifier getModifier() {
+		return hasModifier;
 	}
 
-	public void addModifier(Modifier modifier) {
-		modifiers.add(modifier);
-	}
 
 	public String getName() {
 		return name;
