@@ -72,9 +72,6 @@ public class Main {
 	    		 subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
 	    		 interfaces.addAll(subClasses);
 	    	 }
-
-	    	  
-	    	 
 	    	 objects.add(new Object(qs.get("?sujeto").toString() , subClasses, fieldsOfObject ));
 	    }
 	}
@@ -173,11 +170,11 @@ public class Main {
 	    		 if(modifierType != null){
 	    			 ArrayList<Modifier> combinedModifiersOrdered = new ArrayList<>();
 	    			 ArrayList<String> combinedModifiers = getCombinedModifiers(qs.get("?modifier").toString() , graph);
-	    		 	 if(combinedModifiers.size() != 0){
-	    		 		 System.out.println("entroo");
-	    		 		 combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
-	    		 	 }
-	    			
+	    		 	 if(combinedModifiers.size() != 0) combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
+
+	    		 	 //##ex:stopName  gql:hasModifier ex:nn1
+	    		 	 //ex:nn1 a gql:NonNull . ---> modifier a modifierType
+	    		 	 //ex:nn1 gql:combinedWith ex:l1 . --> combinedModifiersOrdered
 	    			 if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/List"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
 	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new NonNull(qs.get("?modifier").toString(), combinedModifiersOrdered)));
 
@@ -209,21 +206,16 @@ public class Main {
 		if(mod != null){
 			if(mod.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
 			else if(mod.getClass().equals(NonNull.class)) combination = combination + "!";
-			if(mod.getCombinedWith().size() > 0){
-				
-				for(Modifier combined : mod.getCombinedWith()){
-					
+			if(mod.getCombinedWith().size() > 0){		
+				for(Modifier combined : mod.getCombinedWith()){		
 					if(combined.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
 					else if(combined.getClass().equals(NonNull.class)) combination = combination + "!";
-					System.out.println(combined.getName() + " " + combined.getClass() +  "  " + combination);
 				}
 			}
 			while(contadorClaudators > 0){
 				combination =  "[" + combination;
 				--contadorClaudators;
 			}
-			System.out.println(combination);
-			System.out.println("---");
 		}
 		return combination;
 	}
@@ -247,7 +239,7 @@ public class Main {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-
+		
 		VirtGraph graph = new VirtGraph ("TFG_Example1", "jdbc:virtuoso://localhost:1111", "dba", "dba");
 
 		graph.clear ();
