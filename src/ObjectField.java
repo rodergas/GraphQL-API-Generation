@@ -1,10 +1,10 @@
 
-public class ObjectField extends FieldProperty {
+public class ObjectField extends Field {
 	
 
 	
-	public ObjectField(String name) {
-		super(name);
+	public ObjectField(String name, String domain, String range, Modifier modifier) {
+		super(name,domain,range,modifier);
 
 	}
 

@@ -1,11 +1,9 @@
 
-public class ScalarField extends FieldProperty {
+public class ScalarField extends Field {
 
 	
-	public ScalarField(String name,  Scalar scalar){
-		super(name);
-		if(scalar == null) setRange("null");
-		else setRange(scalar.toString());
+	public ScalarField(String name, String domain, String range, Modifier modifier){
+		super(name,domain,range, modifier);
 	}
 
 	

@@ -6,10 +6,13 @@ public class Field {
 	private Modifier hasModifier;
 	private String name;
 	private String domain;
-	private FieldProperty property;
+	private String range;
 	
-	public Field(String name){
+	public Field(String name, String domain, String range, Modifier modifier){
 		this.setName(name);
+		this.setDomain(domain);
+		this.setRange(range);
+		this.setModifier(modifier);
 	}
 
 	public void setModifier(Modifier mod){
@@ -37,11 +40,12 @@ public class Field {
 		this.domain = domain;
 	}
 
-	public FieldProperty getProperty() {
-		return property;
+	public String getRange() {
+		return range;
 	}
 
-	public void setProperty(FieldProperty property) {
-		this.property = property;
+	public void setRange(String range) {
+		this.range = range;
 	}
+
 }

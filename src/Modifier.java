@@ -5,13 +5,14 @@ public class Modifier{
 	private String name;
 	private ArrayList<Modifier> combinedWith;
 	
-	public Modifier(String name){
+	public Modifier(String name, ArrayList<Modifier> combinedWith){
 		this.name = name;
-		combinedWith = new ArrayList<>();
+		this.combinedWith = combinedWith;
+		
 	}
 	
 	public void addCombined(Modifier mod){
-		combinedWith.add(mod);
+		getCombinedWith().add(mod);
 	}
 	
 	public ArrayList<Modifier> getCombinedWith(){
@@ -24,5 +25,9 @@ public class Modifier{
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public void setCombinedWith(ArrayList<Modifier> combinedWith) {
+		this.combinedWith = combinedWith;
 	}
 }

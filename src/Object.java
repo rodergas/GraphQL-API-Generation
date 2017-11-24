@@ -7,10 +7,11 @@ public class Object {
 	private boolean isInterface;
 	
 	
-	public Object(String name){
+	public Object(String name, ArrayList<String> subClassOf, ArrayList<Field> fields){
 		this.setName(name);
-		setSubClassOf(new ArrayList<String>());
-		setFields(new ArrayList<Field>());
+		setSubClassOf(subClassOf);
+		setFields(fields);
+		isInterface = false;
 		
 	}
 	

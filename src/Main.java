@@ -27,11 +27,14 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Statement;
@@ -41,172 +44,175 @@ import virtuoso.jena.driver.*;
 
 public class Main {
 	
-	static String Ex = "http://www.example.com/";
-	static String Gql = "http://www.essi.upc.edu/~jvarga/gql/";
-	static String Rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-	static String Rdfs = "http://www.w3.org/2000/01/rdf-schema#";
 	
-	
-	static void addScalar(ArrayList<ScalarField> createdScalarField, Scalar scalar, String s,  StmtIterator it){
-		for(int i = 0; i < createdScalarField.size(); ++i){
-			 if(createdScalarField.get(i).getName().equals(s.toString())){
-				 createdScalarField.get(i).setRange(scalar.toString());
-				 tripleTratado( it);
-				 }
-		}
-	}
-	
-	static void addObjectFieldRange(ArrayList<ObjectField> createdObjectField, String range, String s,  StmtIterator it){
-		for(int i = 0; i < createdObjectField.size(); ++i){
-			 if(createdObjectField.get(i).getName().equals(s.toString())){
-				 createdObjectField.get(i).setRange(range);
-				 tripleTratado( it);
-				 }
-		}
-	}
-	
-	static void ScalarOrObjectField(String s, ArrayList<ObjectField> createdObjectField, ArrayList<ScalarField> createdScalarField, String o,  StmtIterator it){
-		boolean objectField = false;
-		//boolean scalarField = false;
+	static void getObjects(ArrayList<Object> objects, ArrayList<Field> fields, HashSet<String> interfaces,  VirtGraph graph){
 		
-		for (int i = 0; i < createdObjectField.size(); ++i){
-			if(createdObjectField.get(i).getName().equals(s)){
-				objectField = true;
-				createdObjectField.get(i).setDomain(o.toString());
-				tripleTratado( it);
-				
-			}
-		}
-		
-		if (objectField == false){
-			for (int i = 0; i < createdScalarField.size(); ++i){
-				if(createdScalarField.get(i).getName().equals(s)){
-					//scalarField = true;
-					createdScalarField.get(i).setDomain(o.toString());
-					tripleTratado( it);
-				}
-			}
-		}
-		
-	}
-	
-	static void addModifierToField(String s, ArrayList<Field> createdField, String o, StmtIterator it){
-		for (int i = 0; i < createdField.size(); ++i){
-			if(createdField.get(i).getName().equals(s)){
-				createdField.get(i).setModifier(new Modifier(o));
-				tripleTratado( it);
-			}
-		}
-	}
-	
-	static void addObjectToField(String s, ArrayList<Field> createdField, String o, StmtIterator it){
-		for (int i = 0; i < createdField.size(); ++i){
-			if(createdField.get(i).getName().equals(o)){
-				createdField.get(i).setDomain(s);
-				tripleTratado( it);
-			}
-		}
-	}
-	
-	static void combineModifiers(String s, ArrayList<Modifier> modifiers, String o, StmtIterator it){
-		Integer index = -1;
-		for(int i = 0; i < modifiers.size(); ++i){
-			if(modifiers.get(i).getName().equals(s)){
-				index = i;
-			}
-		}
-		//subject exists
-		if(index >= 0){
-			for(int i = 0; i < modifiers.size(); ++i){
-				if(modifiers.get(i).getName().equals(o)){
-					modifiers.get(index).addCombined(modifiers.get(i));
-					tripleTratado(it);
-				}
-			}
-		}
-	}
-	
-	static void addFieldPropertyToField(String s, ArrayList<Field> createdField,  ArrayList<ObjectField> createdObjectField , ArrayList<ScalarField> createdScalarField , String p, String o, StmtIterator it){
-		for(int i = 0; i < createdField.size(); ++i){
-			//get Field
-			if(createdField.get(i).getName().equals(s)){
-				boolean find = false;
-				//Search if predicate is related to an object Field
-				for(int j = 0; j < createdObjectField.size(); ++j){
-					if(createdObjectField.get(j).getName().equals(o)){
-						find = true;
-						//:b12 gql:asProperty  ex:locatedIn . 
-						createdField.get(i).setProperty(createdObjectField.get(j));
-					}
-				}
-				//Search if is predicate related to an scalar Field
-				if(find == false){
-					for(int j = 0; j < createdScalarField.size(); ++j){
-						if(createdScalarField.get(j).getName().equals(o)){
-							find = true;
-							//:b4  gql:asProperty ex:stationType.
-							createdField.get(i).setProperty(createdScalarField.get(j));
-						}
-					}
-				}
-				if(find) tripleTratado( it);
-			}
-		}
-		
-	}
-	
-	static void tripleTratado(StmtIterator it){
-		 it.remove();
-	}
-	
-	static void writeFields(Object obj, FileWriter fw) throws IOException{
 
-		for(int i = 0; i < obj.getFields().size(); ++i){
-			Field f = obj.getFields().get(i);
-			Integer index = f.getProperty().getName().lastIndexOf("/");
-			String shortName = f.getProperty().getName().substring(index + 1);
-			
-			index = f.getProperty().getRange().lastIndexOf("/");
-			String shortNameRange = f.getProperty().getRange().substring(index + 1);
-			
-			Modifier mod = f.getModifier();
-			
-			if(mod == null){
-				fw.write("	" + shortName + ": " + shortNameRange +  " \r\n");
-			}else{
-				String combination = "";
-				int contadorClaudators = 0;
-				if(mod.getClass().equals(List.class)){ combination += "]"; ++contadorClaudators;}
-				else if(mod.getClass().equals(NonNull.class)) combination += "!";
-				
-				for(int j = 0; j < mod.getCombinedWith().size(); ++j ){
-					System.out.println(shortName + " " + mod);
-					if(mod.getCombinedWith().get(j).getClass().equals(List.class)) { combination += "]"; ++contadorClaudators;}
-					else if(mod.getCombinedWith().get(j).getClass().equals(NonNull.class)) combination += "!";
-				}
-				
-				
-				combination = shortNameRange + combination;
-				
-				for(int j = 0; j < contadorClaudators; ++j) {
-					combination = "[" + combination;
-				}
+		Query sparql = QueryFactory.create("SELECT ?sujeto (group_concat(?subClass ; separator= \" \") as ?subClasses) FROM <http://localhost:8890/ExampleTFG>  WHERE { " 
+				+ "?sujeto <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.essi.upc.edu/~jvarga/gql/Object> ."
+				+ "OPTIONAL {?sujeto <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?subClass .}"
+				+ "}"
+				+ "group by ?sujeto");
 
-				fw.write("	" + shortName + ": " + combination +"\r\n");
-				
-			}
-		}
+
+	    VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
+	    ResultSet res = vqe.execSelect();
+
+	    while(res.hasNext()){
+	    	 ArrayList<Field> fieldsOfObject = new ArrayList<>();
+	    	 QuerySolution qs = res.next();
+	    	 for(Field f : fields){
+	    		 if(f.getDomain().equals(qs.get("?sujeto").toString())) fieldsOfObject.add(f);
+	    	 }
+	    	 ArrayList<String> subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
+	    	 if(subClasses.get(0).equals("")) subClasses = new ArrayList<>();
+	    	 if(!qs.get("?subClasses").toString().equals("")) interfaces.addAll(subClasses);
+	    	 
+	    	 objects.add(new Object(qs.get("?sujeto").toString() , subClasses, fieldsOfObject ));
+	    }
 	}
 	
 	
-	static void askForPk(ArrayList<Object> objects){
-		for(Object o : objects){
-			System.out.println(o.getName());
-			for(Field f : o.getFields()){
-				System.out.println(f.getProperty().getName() + " " + f.getProperty().getRange());
-			}
-			System.out.println("----------");
+	static ArrayList<Modifier> sortModifiers(String startNode, ArrayList<String> otherNodes, VirtGraph graph){
+		ArrayList<Modifier> orderedModifiers = new ArrayList<>();
+		
+		for(int i = 0; i < otherNodes.size(); ++i){
+			Query sparql = QueryFactory.create("SELECT ?rightNode ?rightNodeType  FROM <http://localhost:8890/ExampleTFG> WHERE { "
+					+ "<" + startNode + "> <http://www.essi.upc.edu/~jvarga/gql/combinedWith> ?rightNode."
+					+ "<" + startNode + "> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?rightNodeType."
+					+ "}");
+			VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
+		    ResultSet res = vqe.execSelect();
+
+
+		    while(res.hasNext()){
+		    	 QuerySolution qs = res.next();
+		    	 if(qs.get("?rightNode") != null){
+		    		 if(qs.get("?rightNodeType").toString().equals("http://www.essi.upc.edu/~jvarga/gql/List")) orderedModifiers.add(new List(qs.get("?rightNode").toString(), new ArrayList<Modifier>()));
+		    		 else if(qs.get("?rightNodeType").toString().equals("http://www.essi.upc.edu/~jvarga/gql/NonNull")) orderedModifiers.add(new NonNull(qs.get("?rightNode").toString(), new ArrayList<Modifier>()));
+		    		 startNode = qs.get("?rightNode").toString();
+		    	 }
+		    }
 		}
+
+		return orderedModifiers;
+	}
+	
+	static void getFields(ArrayList<Field> createdField, VirtGraph graph){
+		Query sparql = QueryFactory.create("SELECT ?sujetoScalarField ?sujetoObjectField ?domain ?range ?modifierType ?modifier (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <http://localhost:8890/ExampleTFG> WHERE { "
+				+ "	{"
+				+ "	OPTIONAL {"
+				+ "		?sujetoScalarField <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> ."
+				+ "		?sujetoScalarField <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.essi.upc.edu/~jvarga/gql/ScalarField> ."
+				+ "		?sujetoScalarField <http://www.w3.org/2000/01/rdf-schema#domain> ?domain ."
+				+ "		?sujetoScalarField <http://www.w3.org/2000/01/rdf-schema#range> ?range ."
+				+ "			OPTIONAL{"
+				+ "				?sujetoScalarField <http://www.essi.upc.edu/~jvarga/gql/hasModifier> ?modifier."
+				+ "				?modifier <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?modifierType."
+				+ "				BIND(?modifier AS ?modifier2)."
+				+ "				OPTIONAL{"
+				+ "					?modifier2 <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
+				+ "				}"
+				+ "			}"
+				+ "		}"
+				+ "	}"
+				+ "UNION"
+				+ "	{"
+				+ "	OPTIONAL {"
+				+ "		?sujetoObjectField <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> ."
+				+ "		?sujetoObjectField <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.essi.upc.edu/~jvarga/gql/ObjectField> ."
+				+ "		?sujetoObjectField <http://www.w3.org/2000/01/rdf-schema#domain> ?domain ."
+				+ "		?sujetoObjectField <http://www.w3.org/2000/01/rdf-schema#range> ?range ."
+				+ "			OPTIONAL{"
+				+ "				?sujetoObjectField <http://www.essi.upc.edu/~jvarga/gql/hasModifier> ?modifier."
+				+ "				?modifier <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?modifierType."
+				+ "				BIND(?modifier AS ?modifier2)."
+				+ "				OPTIONAL{"
+				+ "					?modifier2 <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
+				+ "				}"
+				+ "			}"
+				+ "		}"
+				+ "	}"
+				+ "}"
+				+ "group by ?sujetoScalarField ?sujetoObjectField ?domain ?range ?modifierType ?modifier"
+				);
+
+
+	    VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
+	    ResultSet res = vqe.execSelect();
+
+
+	    while(res.hasNext()){
+	    	 QuerySolution qs = res.next();
+
+	    	 String modifierType = null;
+	    	 if(qs.get("?modifierType") != null) modifierType = qs.get("?modifierType").toString();
+
+	    	 if(qs.get("?sujetoObjectField") != null){
+	    		 if(modifierType != null){
+	    			 ArrayList<Modifier> combinedModifiersOrdered = new ArrayList<>();
+	    		 	 if(qs.get("?combinedModifiers") != null){
+		    		 	    ArrayList<String> combinedModifiers = new ArrayList<String>(Arrays.asList(qs.get("?combinedModifiers").toString().split(" ")));
+		    		 	    combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
+		    		 }
+	    			
+	    			 if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/List"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+
+	    		 }else{
+	    			 createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), null ));
+	    		 }
+	    	 }
+	    	 else if(qs.get("?sujetoScalarField") != null){
+	    		 if(modifierType != null){
+	    			 ArrayList<Modifier> combinedModifiersOrdered = new ArrayList<>();
+	    		 	 if(qs.get("?combinedModifiers") != null){
+		    		 	    ArrayList<String> combinedModifiers = new ArrayList<String>(Arrays.asList(qs.get("?combinedModifiers").toString().split(" ")));
+		    		 	    combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
+		    		 }
+	    		 	 
+	    			 if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/List"))createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+
+	    		 }else{
+	    			 createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), null ));
+	    		 }
+	    	 }
+	    }
+	}
+	
+	static String constructRange(String range, Modifier mod){
+		String combination = range;
+		int contadorClaudators = 0;
+		if(mod != null){
+			if(mod.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
+			else if(mod.getClass().equals(NonNull.class)) combination = combination + "!";
+			if(mod.getCombinedWith().size() > 0){
+				for(Modifier combined : mod.getCombinedWith()){
+					if(combined.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
+					else if(combined.getClass().equals(NonNull.class)) combination = combination + "!";
+				}
+			}
+			while(contadorClaudators > 0){
+				combination =  "[" + combination;
+				--contadorClaudators;
+			}
+		}
+		return combination;
+	}
+	
+	static void writeFields(Object o , FileWriter fw) throws IOException{
+		for(Field f : o.getFields()){
+    		Integer index = f.getName().lastIndexOf("/");
+			String shortName = f.getName().substring(index + 1);
+			
+			index = f.getRange().lastIndexOf("/");
+			String shortRange = f.getRange().substring(index + 1);
+			//construct Range [String!]
+			String range = constructRange(shortRange, f.getModifier());
+			fw.write("\t" + shortName + " : " + range + "\r\n");
+		}
+		
 	}
 	
 	/**
@@ -219,180 +225,34 @@ public class Main {
 
 		graph.clear ();
 
-		
-		Query sparql = QueryFactory.create("SELECT * FROM <http://localhost:8890/Example6> WHERE { ?s ?p ?o }  ");
-
-
-		VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
-		Model model = vqe.execConstruct();
-		
-		
-		
 		ArrayList<Object> createdObjects = new ArrayList<>();
-		ArrayList<ScalarField> createdScalarField= new ArrayList<>();
-		ArrayList<ObjectField> createdObjectField= new ArrayList<>();
+		HashSet<String> interfaces = new HashSet<>();
 		ArrayList<Field> createdField= new ArrayList<>();
-		HashSet<String> subClassOf = new HashSet<>();
-		ArrayList<Modifier> modifiers = new ArrayList<>();
 		
-
+		//get Objects
 		
-		while(!model.isEmpty()){
-
-			StmtIterator it =  model.listStatements();
-			
-			while (it.hasNext()) {
-			     Statement stmt = it.next();
-			     
-			     RDFNode s = stmt.getSubject();
-			     RDFNode p = stmt.getPredicate();
-			     RDFNode o = stmt.getObject();
-			     
-			     System.out.println(s.toString() + " " + p.toString() + " " + o.toString());
-			     
-			     //Creating instance of the objects
-			     if(p.toString().equals(Rdf + "type")){
-			    	 
-			    	 
-			    	 
-			    	 if(o.toString().equals(Gql + "ObjectField")){
-			    		 createdObjectField.add(new ObjectField(s.toString()));
-			    	 }else if(o.toString().equals(Gql +"ScalarField")){
-			    		 createdScalarField.add(new ScalarField(s.toString(), null));
-			    	 }else if(o.toString().equals(Gql +"Object")){
-			    		 createdObjects.add(new Object(s.toString()));
-			    	 }else if(o.toString().equals(Gql + "Field")){
-			    		 createdField.add(new Field(s.toString()));
-			    	 }else if(o.toString().equals(Gql + "List")){
-			    		 modifiers.add(new List(s.toString()));
-			    	 }else if(o.toString().equals(Gql + "NonNull")){
-			    		 modifiers.add(new NonNull(s.toString()));
-			    	 }	 
-			    	 else{
-			    		 //Classes instances
-			    	 }
-			    	 tripleTratado( it);
-			     }
-			     //Subclasses of the objects
-			     else if(p.toString().equals(Rdfs + "subClassOf")){
-			    	 for(int i = 0; i < createdObjects.size(); ++i){
-			    		 if(createdObjects.get(i).getName().equals(s.toString())){
-			    			 createdObjects.get(i).addSubClassOf(o.toString());
-			    			 subClassOf.add(o.toString());
-			    			 tripleTratado( it);
-			    		 }
-			    	 }
-			     }
-			     
-			     
-			     //Type of the scalar field or what is the reange of an object field
-			     else if(p.toString().equals(Rdfs + "range")){
-			    	 //ScalarFields
-			    	 if(o.toString().equals(Gql + Scalar.Float.toString())){
-			    		 addScalar(createdScalarField,Scalar.Float, s.toString(), it); 
-			    	 }else if(o.toString().equals(Gql + Scalar.ID.toString())){
-			    		 addScalar(createdScalarField,Scalar.ID, s.toString(),  it); 
-			    	 }else if(o.toString().equals(Gql + Scalar.Boolean.toString())){
-			    		 addScalar(createdScalarField,Scalar.Boolean, s.toString(),  it); 
-			    	 }else if(o.toString().equals(Gql + Scalar.Int.toString())){
-			    		 addScalar(createdScalarField,Scalar.Int, s.toString(),  it); 
-			    	 }else if(o.toString().equals(Gql + Scalar.String.toString())){
-			    		 addScalar(createdScalarField,Scalar.String, s.toString(),  it); 
-			    	 }else{
-			    	 
-			    		 //ObjectFields
-			    		 addObjectFieldRange(createdObjectField, o.toString(), s.toString(), it);
-			    		 
-			    	 }
-			     }
-			     
-			     //The domain could be an object related to another object (ObjectField) ex:nearByInfrastructure rdfs:domain ex:Infrastructure ;
-			     //Or could be an scalar related to an object ex:stopName rdfs:domain ex:MetroAndBusStop ;
-			     
-			     else if(p.toString().equals(Rdfs + "domain")){
-			    	 ScalarOrObjectField(s.toString(), createdObjectField, createdScalarField, o.toString(), it);
-			     }
-			     
-			     //Put modifier of the field
-			     else if(p.toString().equals(Gql + "hasModifier")){
-			    	 addModifierToField(s.toString(), createdField, o.toString(), it);
-			     }
-			     
-			     //Put domain of the Field
-			     else if(p.toString().equals(Gql +"hasField")){
-			    	 addObjectToField(s.toString(), createdField, o.toString(), it);
-			     }
-			     //combine two modifiers
-			     else if(p.toString().equals(Gql + "combinedWith")){
-			    	 combineModifiers(s.toString(), modifiers, o.toString(), it);
-			     }
-			     
-			     //Scalar Field or Object Field (FieldProperty) related with a blank node (Field)
-			     else if(p.toString().contains(Gql + "asProperty")){
-			    	 addFieldPropertyToField(s.toString(), createdField, createdObjectField, createdScalarField, p.toString(), o.toString(), it);
-			    	 
-			     }		
-			     //atributos de instancias "Localitzacio ex:longitude 2 ;"
-			     //else if(!o.toString().contains("http://www.example.com/") && !o.toString().contains("http://www.essi.upc.edu/~jvarga/gql/")){
-			     else{
-			    	 tripleTratado( it);
-			     }
-			}
-			System.out.println("----");
-	    }
 		
-		graph.close();
+		getFields(createdField, graph);
+		getObjects(createdObjects, createdField, interfaces, graph);
 		
 		System.out.println("####OBJECTS#####");
-		for(int i = 0; i < createdObjects.size(); ++i){
-			System.out.println("Name: " + createdObjects.get(i).getName());
-			
-			if(createdObjects.get(i).getSubClassOf().size() > 0){
-				for (int j = 0; j < createdObjects.get(i).getSubClassOf().size(); ++j){
-					System.out.println("Subclass Of: " + createdObjects.get(i).getSubClassOf().get(j));
-				}
-				
+		for(Object o : createdObjects){
+			System.out.println("Name:  " + o.getName());
+			for(String sub : o.getSubClassOf()){
+				System.out.println("SubclassOf " + sub);
 			}
-			System.out.println("--------------------");
-		}
-		
-		System.out.println("#####SCALAR FIELDS#####");
-		for(int i = 0; i < createdScalarField.size(); ++i){
-			System.out.println("Name: " + createdScalarField.get(i).getName());
-			System.out.println("Domain: " + createdScalarField.get(i).getDomain());
-			System.out.println("Scalar: " + createdScalarField.get(i).getRange());
-			System.out.println("--------------------");
-		}
-		System.out.println("#####OBJECT FIELDS#####");
-		for(int i = 0; i < createdObjectField.size(); ++i){
-			System.out.println("Name: " + createdObjectField.get(i).getName());
-			System.out.println("Domain: " + createdObjectField.get(i).getDomain());
-			System.out.println("Range: " + createdObjectField.get(i).getRange());
-			System.out.println("--------------------");
-		}
-		
-		System.out.println("#####FIELDS#####");
-		for(int i = 0; i < createdField.size(); ++i){
-			System.out.println("Name: " + createdField.get(i).getName());
-			Modifier mod = createdField.get(i).getModifier();
-			if(mod != null)System.out.println("Modifier: " + mod.getName());
-			System.out.println("Domain: " + createdField.get(i).getDomain());
-			System.out.println("Field Property Name: " + createdField.get(i).getProperty().getName());
-			System.out.println("Field Type: " + createdField.get(i).getProperty().getRange());
-			System.out.println("--------------------");
-		}
-		
-		
-		System.out.println("#####MODIFIERS#####");
-		for(int i = 0; i < modifiers.size(); ++i){
-			System.out.println("Name : " + modifiers.get(i).getName() + " tipo: " + modifiers.get(i).getClass());
-			
-			for(Modifier m : modifiers.get(i).getCombinedWith()){
-				System.out.println("Name combinado:   " + m.getName() + " tipo combinado: " + m.getClass());
+			for(Field f : o.getFields()){
+				System.out.println(f.getName());
 			}
-			System.out.println("--------------------");
-			
+			System.out.println("----");
 		}
+		
+		for(String inte : interfaces){
+			System.out.println("inte " + inte);
+		}
+		graph.close();
+
+		
 		
 
 		//File newTextFile = new File("C:/Users/rober_000/Documents/TFG/Ejemplos_Ontologias/Primer_ejemplo-17_7_2017_13_57/test.js");
@@ -400,96 +260,46 @@ public class Main {
 
         FileWriter fw = new FileWriter(newTextFile);
         
-        //Link modifiers that have the combinations with createdFields that only have the name of the modifier
-        
-        for(int i = 0; i < createdField.size(); ++i){
-        	Modifier m = createdField.get(i).getModifier();
-        	if(m != null){
-        		for(int j = 0; j < modifiers.size(); ++j){
-        			if(m.getName().equals(modifiers.get(j).getName())){
-        				createdField.get(i).setModifier(modifiers.get(j));
-        			}
-        		}
-        	}
-        }
-        
-        //Link fields (includes scalarfields, objectfields + modifier) with the created objects
-        
-        for(int i = 0; i < createdObjects.size(); ++i){
-        	String name = createdObjects.get(i).getName();
-        	for(int j = 0; j < createdField.size(); ++j){
-        		if(createdField.get(j).getDomain().equals(name)){
-        			createdObjects.get(i).addField(createdField.get(j));
-        		}
-        	}
-        }
-        
-        //See which Object are parents of some classes (interfaces)
-        
-        for(int j = 0; j < createdObjects.size(); ++j){
-        	Object obj = createdObjects.get(j);
+        for(Object o : createdObjects){
         	boolean interfaz = false;
-    		//interface
-        	Iterator<String> it = subClassOf.iterator();
-        	while(it.hasNext()){
-        		String name = it.next();
-        		if(obj.getName().equals(name)){
-        			interfaz = true;
-        			obj.setInterface(true);
-        			Integer index = name.lastIndexOf("/");
-        			String shortName = name.substring(index + 1);
-        			fw.write("interface " + shortName + " {" + "\r\n"); //First line
-        			writeFields(obj,fw);
-        			fw.write("	" + shortName + "Type: String!" + "\r\n"); //type 
-        			fw.write("} " + " \r\n" + " \r\n");
-
-        		}
-        	}
-        	
-        	//No interface
-        	if(!interfaz){
-        		obj.setInterface(false);
-        		Integer index = obj.getName().lastIndexOf("/");
-        		String shortName = obj.getName().substring(index + 1);
-        		
-        		if(obj.getSubClassOf().size() == 0)fw.write("type "  + shortName + " {" + "\r\n");
+        	if(interfaces.contains(o.getName())){ interfaz = true; o.setInterface(true);}
+    		Integer index = o.getName().lastIndexOf("/");
+			String shortName = o.getName().substring(index + 1);
+        	if(interfaz){
+    			fw.write("interface " + shortName + " {" + "\r\n"); //First line
+    			fw.write("	" + shortName + "Type: String!" + "\r\n"); //type 
+        	}else{
+        		fw.write("type " + shortName + " ");
+        		if(o.getSubClassOf().size() == 0)  fw.write("{" + "\r\n");
         		else{
-        			ArrayList<String> nameSubclass = new ArrayList<>();
-        			String shortNameSubClass = "";
-        			fw.write("type "  + shortName + " implements ");
-        			for(int i = 0; i < obj.getSubClassOf().size(); ++i){
-        				index = obj.getSubClassOf().get(i).lastIndexOf("/");
-        				shortNameSubClass = obj.getSubClassOf().get(i).substring(index + 1);
-        				nameSubclass.add(obj.getSubClassOf().get(i));
-        				if(i == 0) fw.write(shortNameSubClass);
-        				else fw.write(", " + shortNameSubClass);
-        				
-        			}
-        			fw.write("{" + "\r\n");
-        			
-        			//Fields of subclassOf to this object
-	        		for(int z = 0; z < createdObjects.size(); ++z){
-	        			for(int k = 0; k < nameSubclass.size(); ++k){
-	        				
-	        				if(createdObjects.get(z).getName().equals(nameSubclass.get(k))){
-	        					index = createdObjects.get(z).getName().lastIndexOf("/");
-	            				shortNameSubClass = createdObjects.get(z).getName().substring(index + 1);
-	        					fw.write("	" + shortNameSubClass + "Type: String!" + "\r\n");
-	        					writeFields(createdObjects.get(z),fw);
-	        				}
+	        			int i = 0;
+	        			for(String subClassOf : o.getSubClassOf()){
+	        				index = subClassOf.lastIndexOf("/");
+	        				String shortNameSubClass = subClassOf.substring(index + 1);
+	        				if(i == 0) fw.write("implements " + shortNameSubClass);
+	        				else fw.write(", " + shortNameSubClass);
+	        				++i;
 	        			}
+	        			fw.write("{" + "\r\n");
+        			
+    					//write Field of interface in the type
+        				for(String subClassOf : o.getSubClassOf()){
+        					for(Object searchParent : createdObjects){
+        						if(searchParent.getName().equals(subClassOf)) writeFields(searchParent, fw);
+        				}
+        				index = subClassOf.lastIndexOf("/");
+        				String shortNameSubClass = subClassOf.substring(index + 1);
+        				fw.write("	" + shortNameSubClass + "Type: String!" + "\r\n"); //type 
         			}
-        			
-        			
-        			
         		}
-        		writeFields(obj,fw);
-    			fw.write("}" + "\r\n");
-    			
+
         	}
-        	
+        	writeFields(o, fw);
+        	fw.write("}" + "\r\n" + "\r\n"); //End type/ interface
         }
         
+
+
         
         //Queries
         fw.write("type Query {" + "\r\n");
@@ -509,8 +319,6 @@ public class Main {
         fw.write("}" + "\r\n" + "\r\n");
         fw.close();
 
-        //askForPk(createdObjects);
-        
 	}
 
 	
