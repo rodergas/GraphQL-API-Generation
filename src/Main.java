@@ -64,9 +64,13 @@ public class Main {
 	    	 for(Field f : fields){
 	    		 if(f.getDomain().equals(qs.get("?sujeto").toString())) fieldsOfObject.add(f);
 	    	 }
-	    	 ArrayList<String> subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
-	    	 if(subClasses.get(0).equals("")) subClasses = new ArrayList<>();
-	    	 if(!qs.get("?subClasses").toString().equals("")) interfaces.addAll(subClasses);
+	    	 
+	    	 ArrayList<String> subClasses = null;
+	    	 
+	    	 if(qs.get("?subClasses").toString().length() == 0)subClasses = new ArrayList<>();
+	    	 else subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
+
+	    	 if(qs.get("?subClasses").toString().length() != 0) interfaces.addAll(subClasses);
 	    	 
 	    	 objects.add(new Object(qs.get("?sujeto").toString() , subClasses, fieldsOfObject ));
 	    }
@@ -79,7 +83,7 @@ public class Main {
 		for(int i = 0; i < otherNodes.size(); ++i){
 			Query sparql = QueryFactory.create("SELECT ?rightNode ?rightNodeType  FROM <http://localhost:8890/ExampleTFG> WHERE { "
 					+ "<" + startNode + "> <http://www.essi.upc.edu/~jvarga/gql/combinedWith> ?rightNode."
-					+ "<" + startNode + "> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?rightNodeType."
+					+ "?rightNode <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?rightNodeType."
 					+ "}");
 			VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
 		    ResultSet res = vqe.execSelect();
@@ -94,8 +98,26 @@ public class Main {
 		    	 }
 		    }
 		}
-
+		
 		return orderedModifiers;
+	}
+	
+	static ArrayList<String> getCombinedModifiers(String subject , VirtGraph graph){
+		ArrayList<String> combinedModifiers = new ArrayList<>();
+		Query sparql = QueryFactory.create("SELECT  (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <http://localhost:8890/ExampleTFG> WHERE { "
+				+ "<" + subject + "> <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
+				+ "}"
+				);
+
+	    VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
+	    ResultSet res = vqe.execSelect();
+	    while(res.hasNext()){
+	    	 QuerySolution qs = res.next();
+	    	 if(qs.get("?combinedModifiers").toString().length() == 0)combinedModifiers = new ArrayList<>();
+	    	 else combinedModifiers = new ArrayList<String>(Arrays.asList(qs.get("?combinedModifiers").toString().split(" ")));
+	    }
+
+		return combinedModifiers;
 	}
 	
 	static void getFields(ArrayList<Field> createdField, VirtGraph graph){
@@ -109,10 +131,6 @@ public class Main {
 				+ "			OPTIONAL{"
 				+ "				?sujetoScalarField <http://www.essi.upc.edu/~jvarga/gql/hasModifier> ?modifier."
 				+ "				?modifier <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?modifierType."
-				+ "				BIND(?modifier AS ?modifier2)."
-				+ "				OPTIONAL{"
-				+ "					?modifier2 <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
-				+ "				}"
 				+ "			}"
 				+ "		}"
 				+ "	}"
@@ -126,10 +144,6 @@ public class Main {
 				+ "			OPTIONAL{"
 				+ "				?sujetoObjectField <http://www.essi.upc.edu/~jvarga/gql/hasModifier> ?modifier."
 				+ "				?modifier <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?modifierType."
-				+ "				BIND(?modifier AS ?modifier2)."
-				+ "				OPTIONAL{"
-				+ "					?modifier2 <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
-				+ "				}"
 				+ "			}"
 				+ "		}"
 				+ "	}"
@@ -140,6 +154,10 @@ public class Main {
 
 	    VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create (sparql, graph);
 	    ResultSet res = vqe.execSelect();
+	    
+
+
+
 
 
 	    while(res.hasNext()){
@@ -151,13 +169,14 @@ public class Main {
 	    	 if(qs.get("?sujetoObjectField") != null){
 	    		 if(modifierType != null){
 	    			 ArrayList<Modifier> combinedModifiersOrdered = new ArrayList<>();
-	    		 	 if(qs.get("?combinedModifiers") != null){
-		    		 	    ArrayList<String> combinedModifiers = new ArrayList<String>(Arrays.asList(qs.get("?combinedModifiers").toString().split(" ")));
-		    		 	    combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
-		    		 }
+	    			 ArrayList<String> combinedModifiers = getCombinedModifiers(qs.get("?modifier").toString() , graph);
+	    		 	 if(combinedModifiers.size() != 0){
+	    		 		 System.out.println("entroo");
+	    		 		 combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
+	    		 	 }
 	    			
 	    			 if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/List"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
-	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new NonNull(qs.get("?modifier").toString(), combinedModifiersOrdered)));
 
 	    		 }else{
 	    			 createdField.add(new ObjectField(qs.get("?sujetoObjectField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), null ));
@@ -166,13 +185,13 @@ public class Main {
 	    	 else if(qs.get("?sujetoScalarField") != null){
 	    		 if(modifierType != null){
 	    			 ArrayList<Modifier> combinedModifiersOrdered = new ArrayList<>();
-	    		 	 if(qs.get("?combinedModifiers") != null){
-		    		 	    ArrayList<String> combinedModifiers = new ArrayList<String>(Arrays.asList(qs.get("?combinedModifiers").toString().split(" ")));
-		    		 	    combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
-		    		 }
+	    			 
+	    			 ArrayList<String> combinedModifiers = getCombinedModifiers(qs.get("?modifier").toString() , graph);
+	    			 if(combinedModifiers.size() != 0)combinedModifiersOrdered = sortModifiers(qs.get("?modifier").toString(), combinedModifiers, graph);
+	    	
 	    		 	 
 	    			 if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/List"))createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
-	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new List(qs.get("?modifier").toString(), combinedModifiersOrdered)));
+	    			 else if(modifierType.equals("http://www.essi.upc.edu/~jvarga/gql/NonNull"))createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), new NonNull(qs.get("?modifier").toString(), combinedModifiersOrdered)));
 
 	    		 }else{
 	    			 createdField.add(new ScalarField(qs.get("?sujetoScalarField").toString(),qs.get("?domain").toString(), qs.get("?range").toString(), null ));
@@ -188,15 +207,20 @@ public class Main {
 			if(mod.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
 			else if(mod.getClass().equals(NonNull.class)) combination = combination + "!";
 			if(mod.getCombinedWith().size() > 0){
+				
 				for(Modifier combined : mod.getCombinedWith()){
+					
 					if(combined.getClass().equals(List.class)){ combination = combination + "]"; ++contadorClaudators;}
 					else if(combined.getClass().equals(NonNull.class)) combination = combination + "!";
+					System.out.println(combined.getName() + " " + combined.getClass() +  "  " + combination);
 				}
 			}
 			while(contadorClaudators > 0){
 				combination =  "[" + combination;
 				--contadorClaudators;
 			}
+			System.out.println(combination);
+			System.out.println("---");
 		}
 		return combination;
 	}
@@ -234,7 +258,7 @@ public class Main {
 		
 		getFields(createdField, graph);
 		getObjects(createdObjects, createdField, interfaces, graph);
-		
+		/*
 		System.out.println("####OBJECTS#####");
 		for(Object o : createdObjects){
 			System.out.println("Name:  " + o.getName());
@@ -242,7 +266,9 @@ public class Main {
 				System.out.println("SubclassOf " + sub);
 			}
 			for(Field f : o.getFields()){
+				
 				System.out.println(f.getName());
+				if(f.getModifier()!=null) System.out.println("Modifier " + f.getModifier().getName());
 			}
 			System.out.println("----");
 		}
@@ -250,6 +276,7 @@ public class Main {
 		for(String inte : interfaces){
 			System.out.println("inte " + inte);
 		}
+		*/
 		graph.close();
 
 		
