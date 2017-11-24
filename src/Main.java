@@ -68,9 +68,12 @@ public class Main {
 	    	 ArrayList<String> subClasses = null;
 	    	 
 	    	 if(qs.get("?subClasses").toString().length() == 0)subClasses = new ArrayList<>();
-	    	 else subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
+	    	 else{
+	    		 subClasses = new ArrayList<String>(Arrays.asList(qs.get("?subClasses").toString().split(" ")));
+	    		 interfaces.addAll(subClasses);
+	    	 }
 
-	    	 if(qs.get("?subClasses").toString().length() != 0) interfaces.addAll(subClasses);
+	    	  
 	    	 
 	    	 objects.add(new Object(qs.get("?sujeto").toString() , subClasses, fieldsOfObject ));
 	    }
