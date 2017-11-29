@@ -24,12 +24,16 @@
 //package virtuoso.jena.driver;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Properties;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
@@ -44,11 +48,12 @@ import virtuoso.jena.driver.*;
 
 public class Main {
 	
-	
+	static String dbName, user, password, graphName, url_hostlist, destinationPathApiGraphQL;
+
 	static void getObjects(ArrayList<Object> objects, ArrayList<Field> fields, HashSet<String> interfaces,  VirtGraph graph){
 		
 
-		Query sparql = QueryFactory.create("SELECT ?sujeto (group_concat(?subClass ; separator= \" \") as ?subClasses) FROM <http://localhost:8890/ExampleTFG>  WHERE { " 
+		Query sparql = QueryFactory.create("SELECT ?sujeto (group_concat(?subClass ; separator= \" \") as ?subClasses) FROM <"+ dbName +">  WHERE { " 
 				+ "?sujeto <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.essi.upc.edu/~jvarga/gql/Object> ."
 				+ "OPTIONAL {?sujeto <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?subClass .}"
 				+ "}"
@@ -81,7 +86,7 @@ public class Main {
 		ArrayList<Modifier> orderedModifiers = new ArrayList<>();
 		
 		for(int i = 0; i < otherNodes.size(); ++i){
-			Query sparql = QueryFactory.create("SELECT ?rightNode ?rightNodeType  FROM <http://localhost:8890/ExampleTFG> WHERE { "
+			Query sparql = QueryFactory.create("SELECT ?rightNode ?rightNodeType  FROM <"+ dbName +"> WHERE { "
 					+ "<" + startNode + "> <http://www.essi.upc.edu/~jvarga/gql/combinedWith> ?rightNode."
 					+ "?rightNode <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?rightNodeType."
 					+ "}");
@@ -104,7 +109,7 @@ public class Main {
 	
 	static ArrayList<String> getCombinedModifiers(String subject , VirtGraph graph){
 		ArrayList<String> combinedModifiers = new ArrayList<>();
-		Query sparql = QueryFactory.create("SELECT  (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <http://localhost:8890/ExampleTFG> WHERE { "
+		Query sparql = QueryFactory.create("SELECT  (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <"+ dbName +"> WHERE { "
 				+ "<" + subject + "> <http://www.essi.upc.edu/~jvarga/gql/combinedWith>+ ?combinedWith."
 				+ "}"
 				);
@@ -121,7 +126,7 @@ public class Main {
 	}
 	
 	static void getFields(ArrayList<Field> createdField, VirtGraph graph){
-		Query sparql = QueryFactory.create("SELECT ?sujetoScalarField ?sujetoObjectField ?domain ?range ?modifierType ?modifier (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <http://localhost:8890/ExampleTFG> WHERE { "
+		Query sparql = QueryFactory.create("SELECT ?sujetoScalarField ?sujetoObjectField ?domain ?range ?modifierType ?modifier (group_concat(?combinedWith; separator= \" \") as ?combinedModifiers) FROM <"+ dbName +"> WHERE { "
 				+ "	{"
 				+ "	OPTIONAL {"
 				+ "		?sujetoScalarField <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> ."
@@ -240,7 +245,35 @@ public class Main {
 	 */
 	public static void main(String[] args) throws IOException {
 		
-		VirtGraph graph = new VirtGraph ("TFG_Example1", "jdbc:virtuoso://localhost:1111", "dba", "dba");
+	    Properties prop = new Properties();
+	    InputStream input = Main.class.getResourceAsStream("config.properties");
+	    try {
+	        // load a properties file
+	        prop.load(input);
+
+	        // get the property value and print it out
+	        user = prop.getProperty("user");
+	        password = prop.getProperty("password");
+	        graphName = prop.getProperty("graphName");
+	        url_hostlist = prop.getProperty("url_hostlist");
+	        
+	        dbName = prop.getProperty("dbName");
+	        
+	        destinationPathApiGraphQL = prop.getProperty("destinationPathApiGraphQL");
+
+	    } catch (IOException ex) {
+	        ex.printStackTrace();
+	    } finally {
+	        if (input != null) {
+	            try {
+	                input.close();
+	            } catch (IOException e) {
+	                e.printStackTrace();
+	            }
+	        }
+	    }
+		
+		VirtGraph graph = new VirtGraph (graphName, url_hostlist, user, password);
 
 		graph.clear ();
 
@@ -278,7 +311,7 @@ public class Main {
 		
 
 		//File newTextFile = new File("C:/Users/rober_000/Documents/TFG/Ejemplos_Ontologias/Primer_ejemplo-17_7_2017_13_57/test.js");
-		File newTextFile = new File("C:/Users/rober_000/Documents/TFG/Ejemplos_Ontologias/Primer_ejemplo_extendido-18_09_2017_17_31/test.js");
+		File newTextFile = new File(destinationPathApiGraphQL);
 
         FileWriter fw = new FileWriter(newTextFile);
         
@@ -307,14 +340,15 @@ public class Main {
     					//write Field of interface in the type
         				for(String subClassOf : o.getSubClassOf()){
         					for(Object searchParent : createdObjects){
-        						if(searchParent.getName().equals(subClassOf)) writeFields(searchParent, fw);
+        						if(searchParent.getName().equals(subClassOf)){
+        							writeFields(searchParent, fw);
+        	        				index = subClassOf.lastIndexOf("/");
+        	        				String shortNameSubClass = subClassOf.substring(index + 1);
+        	        				fw.write("	" + shortNameSubClass + "Type: String!" + "\r\n"); //type 
+        						}
         				}
-        				index = subClassOf.lastIndexOf("/");
-        				String shortNameSubClass = subClassOf.substring(index + 1);
-        				fw.write("	" + shortNameSubClass + "Type: String!" + "\r\n"); //type 
         			}
         		}
-
         	}
         	writeFields(o, fw);
         	fw.write("}" + "\r\n" + "\r\n"); //End type/ interface
