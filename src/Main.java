@@ -255,6 +255,7 @@ public class Main {
 	        user = prop.getProperty("user");
 	        password = prop.getProperty("password");
 	        graphName = prop.getProperty("graphName");
+	        if(graphName.isEmpty()) graphName = "TFG";
 	        url_hostlist = prop.getProperty("url_hostlist");
 	        
 	        dbName = prop.getProperty("dbName");
